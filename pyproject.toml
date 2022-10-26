@@ -1,23 +1,30 @@
-#[build-system]
-#requires = ["hatchling","attrs","matplotlib","numpy","shapely","pandas"]
-#build-backend = "hatchling.build"
-#
-#[project]
-#name = "ortega_2022"
-#version = "0.0.3"
-#authors = [
-#  { name="Rongxiang Su", email="rongxiangsu@ucsb.edu" },
-#]
-#description = "A package for interaction analysis between moving individuals"
-#readme = "README.md"
-#requires-python = ">=3.8"
-#classifiers = [
-#    "Programming Language :: Python :: 3.8",
-#    "License :: OSI Approved :: MIT License",
-#    "Operating System :: OS Independent",
-#]
-#
-##[project.urls]
-##urls lets you list any number of extra links to show on PyPI. Generally this could be to the source, documentation, issue trackers, etc.
-##"Homepage" = "https://github.com/pypa/sampleproject"
-##"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+[build-system]
+requires = ["hatchling","attrs","matplotlib","numpy","shapely","pandas","geographiclib"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ortega_2022"
+version = "0.0.13"
+authors = [
+  { name="Rongxiang Su", email="rongxiangsu@ucsb.edu" },
+]
+description = "A package for interaction analysis between moving individuals"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    'attrs',
+    'matplotlib',
+    'numpy',
+    'shapely',
+    'pandas'
+]
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+#[project.urls]
+#urls lets you list any number of extra links to show on PyPI. Generally this could be to the source, documentation, issue trackers, etc.
+#"Homepage" = "https://github.com/pypa/sampleproject"
+#"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
