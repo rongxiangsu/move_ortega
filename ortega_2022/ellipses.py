@@ -7,7 +7,7 @@ from shapely.geometry.polygon import LinearRing
 from shapely.geometry import Point, Polygon
 from attrs import define, field
 
-from ortega.STPoint import STPoint
+from ortega_2022.STPoint import STPoint
 
 
 def ellipse_polyline(

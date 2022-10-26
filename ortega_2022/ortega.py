@@ -1,9 +1,11 @@
 from typing import List, Tuple
 import pandas as pd
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import statistics
 
-from ortega.ellipses import Ellipse, EllipseList
+from ortega_2022.ellipses import Ellipse, EllipseList
 
 # make into Ellipse converters:
 def __timedifcheck(t1: pd.Timestamp, t2: pd.Timestamp):
