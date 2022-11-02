@@ -2,18 +2,16 @@ from datetime import datetime as datetime
 from datetime import timedelta
 
 import matplotlib.pyplot as plt
-import matplotlib
-import matplotlib.patches as mpatches
 
 import statistics
 import pandas as pd
 import numpy as np
-from ortega_2022.ellipses import Ellipse, EllipseList
+from .ellipses import Ellipse, EllipseList
 from pandas.api.types import is_datetime64_dtype
 from typing import List, Tuple
 from geographiclib.geodesic import Geodesic
 
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 
 
 def __check_dist(lat1: float, lon1: float, lat2: float, lon2: float):
@@ -93,22 +91,18 @@ def __check_temporal_intersect(
 
 
 def get_spatiotemporal_intersect_pairs(
-        ellipses_list: List[Ellipse], id1: int, id2: int, interaction_min_delay: float, max_el_time_min: float
+        ellipses_list_id1: List[Ellipse], ellipses_list_id2: List[Ellipse],
+        interaction_min_delay: float, max_el_time_min: float
 ) -> List[Tuple[Ellipse, Ellipse]]:
     """
     Get spatially and temporally intersect PPA pairs
-    :param id2:
+    :param ellipses_list_id2:
+    :param ellipses_list_id1:
     :param max_el_time_min:
-    :param ellipses_list:
-    :param id1:
     :param interaction_min_delay:
     :return:
     """
     intersection_pairs = []
-
-    ellipses_list_id1 = [i for i in ellipses_list if i.pid == id1]
-    ellipses_list_id2 = [i for i in ellipses_list if i.pid == id2]
-
     for count, item in enumerate(ellipses_list_id1, 1):
         if __timedifcheck(item.t1, item.t2) > max_el_time_min * 60:
             continue  # May 15,2020: eliminate PPA if the time interval of PPA is too large:
@@ -271,119 +265,7 @@ def durationEstimator(df: pd.DataFrame, max_el_time_min: float, id1: int, id2: i
     return df_new[['No', 'Person1', 'Person2', 'Start', 'End', 'Duration']]
 
 
-def plot_interaction(all_intersection_pairs: List[Tuple[Ellipse, Ellipse]], ellipses_list: List[Ellipse],
-                     id1: int, id2: int, max_el_time_min: float, max_val: float, throw_out_big_ellipses: bool = True,
-                     legend: bool = True, save_plot: bool = False):
-    all_intersection_ppa = [i[0] for i in all_intersection_pairs]
-    all_intersection_ppa.extend([i[1] for i in all_intersection_pairs])
-    ellipse_collection = [
-        [i for i in ellipses_list if i.pid == id1],
-        [i for i in ellipses_list if i.pid == id2],
-        all_intersection_ppa,
-    ]
 
-    color1 = "#ff0000"  # "#3ABA36" #green #
-    color2 = "#0000ff"  # "#ff0000" #red %"#005EFF" #blue #"
-    interaction_color = "#f2ff00"  # yellow
-    colors = [color1, color2, interaction_color]
-    fig = plt.figure(1, figsize=(8, 8), dpi=90)
-
-    for i, collection in enumerate(ellipse_collection):
-        color_picked = colors[i]
-        for item in collection:
-            if throw_out_big_ellipses and abs(
-                    pd.Timedelta(item.t2 - item.t1).total_seconds()) >= max_el_time_min * 60:
-                continue
-            if throw_out_big_ellipses and item.el[0].length > max_val:
-                continue
-
-            x, y = item.el[0].xy
-            plt.plot(
-                y,
-                x,
-                color=color_picked,
-                alpha=0.8,
-                linewidth=1,
-                solid_capstyle="round",
-            )
-
-            # PLOT THE POINTS USED TO MAKE THE ELLIPSES, TOO
-            plt.plot(
-                [item.lon, item.last_lon],
-                [item.lat, item.last_lat],
-                "o-",
-                color="grey",
-                linewidth=0.5,
-                markersize=1,
-            )
-
-    plt.axis("equal")
-    plt.axis("on")
-    # plt.title('')
-    plt.xlabel("Longitude", fontsize=14)
-    plt.ylabel("Latitude", fontsize=14)
-    plt.grid(True)
-    if legend:
-        color1_patch = mpatches.Patch(color=color1, label=id1)
-        color2_patch = mpatches.Patch(color=color2, label=id2)
-        plt.legend(handles=[color1_patch, color2_patch])
-    if save_plot:
-        plt.savefig(f"{id1}_{id2}_interaction.pdf")
-    plt.show()
-
-
-def plot_original_tracks(ellipses_list: List[Ellipse], id1: int, id2: int, max_el_time_min: float, max_val: float,
-                         throw_out_big_ellipses: bool = True, legend: bool = True, save_plot: bool = False):
-    ellipse_collection = [
-        [i for i in ellipses_list if i.pid == id1],
-        [i for i in ellipses_list if i.pid == id2],
-    ]
-    color1 = "#ff0000"
-    color2 = "#0000ff"
-    colors = [color1, color2]
-    fig = plt.figure(1, figsize=(8, 8), dpi=90)
-
-    for i, collection in enumerate(ellipse_collection):
-        color_picked = colors[i]
-        for item in collection:
-            if throw_out_big_ellipses and abs(
-                    pd.Timedelta(item.t2 - item.t1).total_seconds()) >= max_el_time_min * 60:
-                continue
-            if throw_out_big_ellipses and item.el[0].length > max_val:
-                continue
-            x, y = item.el[0].xy
-            plt.plot(
-                y,
-                x,
-                color=color_picked,
-                alpha=0.8,
-                linewidth=1,
-                solid_capstyle="round",
-            )
-
-            # PLOT THE POINTS USED TO MAKE THE ELLIPSES, TOO
-            plt.plot(
-                [item.lon, item.last_lon],
-                [item.lat, item.last_lat],
-                "o-",
-                color="grey",
-                linewidth=0.5,
-                markersize=1,
-            )
-
-    plt.axis("equal")
-    plt.axis("on")
-    # plt.title('')
-    plt.xlabel("Longitude", fontsize=14)
-    plt.ylabel("Latitude", fontsize=14)
-    plt.grid(True)
-    if legend:
-        color1_patch = mpatches.Patch(color=color1, label=id1)
-        color2_patch = mpatches.Patch(color=color2, label=id2)
-        plt.legend(handles=[color1_patch, color2_patch])
-    if save_plot:
-        plt.savefig(f"{id1}_{id2}_original_tracks.pdf")
-    plt.show()
 
 
 class ORTEGA:
@@ -535,7 +417,7 @@ class ORTEGA:
             raise ValueError(f'Only two unique id is allowed but {len(id_list)} id are found in the given dataframe!')
         else:
             self.id1, self.id2 = id_list[0], id_list[1]
-            # split the dataframe according to id
+            # split the dataframe according to id and filter by the time window if given
             if self.start_time is not None and self.end_time is None:
                 start_time = datetime.strptime(self.start_time, '%Y-%m-%d %H:%M:%S')
                 self.subset = self.data[[self.data[self.time_field] >= start_time]]
@@ -563,8 +445,11 @@ class ORTEGA:
         """
 
         self.ellipses_list = self.__get_ellipse_list(self.df1, self.df2)  # all ellipses for two objects
+        self.ellipses_list_id1 = [i for i in self.ellipses_list if i.pid == self.id1]
+        self.ellipses_list_id2 = [i for i in self.ellipses_list if i.pid == self.id2]
+
         #  list of intersecting ellipses
-        self.all_intersection_pairs = self.__get_spatiotemporal_intersect_pairs(self.df1, self.ellipses_list)
+        self.all_intersection_pairs = self.__get_spatiotemporal_intersect_pairs()
 
         if not self.all_intersection_pairs:
             print(datetime.now(), 'Complete! No interaction found!')
@@ -590,33 +475,29 @@ class ORTEGA:
         ellipses_list_gen.generate(df1)  # create PPA for df1
         return ellipses_list_gen.generate(df2)  # append PPA based on df2 to the above ellipses_list_gen object
 
-    def __get_spatiotemporal_intersect_pairs(self, df: pd.DataFrame, ellipses_list: List[Ellipse]):
+    def __get_spatiotemporal_intersect_pairs(self):
         print(datetime.now(), "Getting spatial and temporal intersection pairs")
-        return get_spatiotemporal_intersect_pairs(ellipses_list, self.id1, self.id2, self.minute_delay,
-                                                  self.max_el_time_min)
+        return get_spatiotemporal_intersect_pairs(self.ellipses_list_id1, self.ellipses_list_id2,
+                                                  self.minute_delay, self.max_el_time_min)
 
-    def __report_gen(self):
-        """
-        generate max value to throw out big PPA that has a length larger than 3x standard dev of all PPAs
-        :return:
-        """
-        size_list = [e.el[0].length for e in self.ellipses_list]
-
-        return {
-            "stdev": statistics.stdev(size_list),
-            "mean": statistics.mean(size_list),
-            "max_val": statistics.mean(size_list) + 3 * statistics.stdev(size_list),
-        }
+    # def __report_gen(self):
+    #     """
+    #     generate max value to throw out big PPA that has a length larger than 3x standard dev of all PPAs
+    #     :return:
+    #     """
+    #     size_list = [e.el[0].length for e in self.ellipses_list]
+    #
+    #     return {
+    #         "stdev": statistics.stdev(size_list),
+    #         "mean": statistics.mean(size_list),
+    #         "max_val": statistics.mean(size_list) + 3 * statistics.stdev(size_list),
+    #     }
 
     def __compute_ppa_size(self):
         if not self.ellipses_list:
             raise ValueError("The attribute 'ellipses_list' is not found!")
-        ellipse_collection = [
-            [i for i in self.ellipses_list if i.pid == self.id1],
-            [i for i in self.ellipses_list if i.pid == self.id2],
-        ]
-        size_list1 = [e.el[0].length for e in ellipse_collection[0]]
-        size_list2 = [e.el[0].length for e in ellipse_collection[1]]
+        size_list1 = [e.el[0].length for e in self.ellipses_list_id1]
+        size_list2 = [e.el[0].length for e in self.ellipses_list_id2]
         return {"size_list1": size_list1, "size_list2": size_list2}
 
     def compute_ppa_size(self, plot: bool = True):
@@ -679,9 +560,28 @@ class ORTEGA:
             raise ValueError("The attribute 'ellipses_list' is not found!")
         if max_el_time_min is None:
             max_el_time_min = self.max_el_time_min
-        max_val: float = self.__report_gen()["max_val"]
-        plot_interaction(self.all_intersection_pairs, self.ellipses_list, self.id1, self.id2,
-                         max_el_time_min, max_val, throw_out_big_ellipses, legend, save_plot)
+        # max_val: float = self.__report_gen()["max_val"]
+        plot_interaction(self.all_intersection_pairs, self.ellipses_list_id1, self.ellipses_list_id2,
+                         self.id1, self.id2, max_el_time_min, throw_out_big_ellipses, legend, save_plot)  # max_val
+
+    def plot_interaction_animated(self, max_el_time_min: float = None, throw_out_big_ellipses: bool = True,
+                                  legend: bool = True, save_plot: bool = False):
+        if not self.all_intersection_pairs:
+            raise ValueError("The attribute 'all_intersection_pairs' is not found!")
+        if not self.ellipses_list:
+            raise ValueError("The attribute 'ellipses_list' is not found!")
+        if max_el_time_min is None:
+            max_el_time_min = self.max_el_time_min
+
+        max_lon = max(self.df1[self.longitude_field].max(), self.df2[self.longitude_field].max())
+        min_lon = min(self.df1[self.longitude_field].min(), self.df2[self.longitude_field].min())
+        max_lat = max(self.df1[self.latitude_field].max(), self.df2[self.latitude_field].max())
+        min_lat = min(self.df1[self.latitude_field].min(), self.df2[self.latitude_field].min())
+
+        boundary = [[min_lon - 0.01, max_lon + 0.01], [min_lat - 0.01, max_lat + 0.01]]
+        plot_interaction_animated(self.all_intersection_pairs, self.ellipses_list_id1, self.ellipses_list_id2, boundary,
+                                  self.id1, self.id2, max_el_time_min, throw_out_big_ellipses, legend, save_plot)
+        print(datetime.now(), 'Showing animated interaction...')
 
     def plot_original_tracks(self, max_el_time_min: float = None, throw_out_big_ellipses: bool = True,
                              legend: bool = True, save_plot: bool = False):
@@ -689,9 +589,9 @@ class ORTEGA:
             raise ValueError("The attribute 'ellipses_list' is not found!")
         if max_el_time_min is None:
             max_el_time_min = self.max_el_time_min
-        max_val: float = self.__report_gen()["max_val"]
-        plot_original_tracks(self.ellipses_list, self.id1, self.id2, max_el_time_min, max_val,
-                             throw_out_big_ellipses, legend, save_plot)
+        # max_val: float = self.__report_gen()["max_val"]
+        plot_original_tracks(self.ellipses_list_id1, self.ellipses_list_id2, self.id1, self.id2, max_el_time_min,
+                             throw_out_big_ellipses, legend, save_plot)  # max_val
 
     def proximity(self, minute_delay: float = None, distance_size: float = 100.0):
         """

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling","attrs","matplotlib","numpy","shapely","pandas","geographiclib"]
+requires = ["hatchling","attrs","matplotlib","numpy","shapely","pandas","geographiclib","keplergl"]
 build-backend = "hatchling.build"
 
 [project]

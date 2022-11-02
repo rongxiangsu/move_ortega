@@ -7,7 +7,7 @@ from shapely.geometry.polygon import LinearRing
 from shapely.geometry import Point, Polygon
 from attrs import define, field
 
-from ortega_2022.STPoint import STPoint
+from .STPoint import STPoint
 
 
 def ellipse_polyline(ptc: Point, major: float, minor: float, angle: float, n: int = 100):
@@ -158,7 +158,7 @@ class EllipseList:
         self.last_lat = row[self.latitude_field]
         self.last_lon = row[self.longitude_field]
         self.last_id = row[self.id_field]
-        self.last_ts = row[self.time_field]  #test
+        self.last_ts = row[self.time_field]
 
     def get_last_to_point(self) -> STPoint:
         return STPoint(self.last_lat, self.last_lon, self.last_ts, self.last_id)

@@ -1,6 +1,7 @@
-from ortega_2022.ellipses import *
-from ortega_2022.STPoint import *
-from ortega_2022.ortega import *
+from .ellipses import *
+from .STPoint import *
+from .ortega import *
+from .visualization import *
 
 # __title__ = "ortega_2022"
 # __version__ = "0.0.5"
