@@ -1,79 +1,10 @@
 from datetime import datetime as datetime
-from datetime import timedelta
 
-import matplotlib.pyplot as plt
-
-import statistics
-import pandas as pd
-import numpy as np
 from .ellipses import Ellipse, EllipseList
 from pandas.api.types import is_datetime64_dtype
 from typing import List, Tuple
-from geographiclib.geodesic import Geodesic
-
-# matplotlib.use('TkAgg')
-
-
-def __check_dist(lat1: float, lon1: float, lat2: float, lon2: float):
-    d = Geodesic.WGS84.Inverse(lat1, lon1, lat2, lon2)
-    return d['s12']
-
-
-def proximity_interaction(df1: pd.DataFrame, df2: pd.DataFrame, minute_delay: float, distance_size: float,
-                          latitude_field: str, longitude_field: str, time_field: str, id1: int, id2: int):
-    intersection_list = []
-    for a, row in df1.iterrows():
-        lf_lat, lf_lon, lf_ts = float(row[latitude_field]), float(row[longitude_field]), row[time_field]
-        min_time = lf_ts - timedelta(seconds=minute_delay * 60)
-        max_time = lf_ts + timedelta(seconds=minute_delay * 60)
-        sub_df2 = df2[(df2[time_field] >= min_time) & (df2[time_field] <= max_time)]
-        for b, others in sub_df2.iterrows():
-            if __check_dist(lf_lat, lf_lon, float(others[latitude_field]), float(others[longitude_field])) \
-                    < distance_size and abs((others[time_field] - lf_ts).seconds) < minute_delay * 60:
-                intersection_list.append(tuple((id1, lf_ts, lf_lat, lf_lon, id2,
-                                                others[time_field], others[latitude_field],
-                                                others[longitude_field])))
-    return pd.DataFrame(intersection_list, columns=["Person1", "Person1_time", "Person1_lat", "Person1_lon",
-                                                    "Person2", "Person2_time", "Person2_lat", "Person2_lon"])
-
-
-def merge_continuous_incident_proximity(df: pd.DataFrame, id1: int, id2: int, threshold_continuous_min: float):
-    p1time = df['Person1_time'].tolist()
-    p2time = df['Person2_time'].tolist()
-    final_start, final_end = [], []
-    subq, final_sub = [], []
-    i = 0
-    while i < len(p1time) - 1:
-        if (p1time[i + 1] - p1time[i]).total_seconds() / 60.0 <= threshold_continuous_min:
-            subq.extend([p1time[i], p2time[i], p1time[i + 1], p2time[i + 1]])
-        else:
-            if len(subq) != 0:
-                final_sub.append(subq)
-            else:
-                final_sub.append([p1time[i], p2time[i]])
-            subq = []
-        i += 1
-    if len(subq) != 0:
-        final_sub.append(subq)
-    if len(p1time) == 1:
-        final_sub.append([p1time[0], p2time[0]])
-    if p1time[-1] not in final_sub[-1]:
-        final_sub.append([p1time[-1], p2time[-1]])
-    for item in final_sub:
-        final_start.append(min(item))
-        final_end.append(max(item))
-
-    df_new = pd.DataFrame(list(zip(final_start, final_end)), columns=['Start', 'End'])
-    df_new['Person1'] = id1
-    df_new['Person2'] = id2
-    df_new['No'] = np.arange(df_new.shape[0]) + 1
-    df_new['Duration_proxi'] = df_new['End'] - df_new['Start']
-    df_new['Duration_proxi'] = df_new['Duration_proxi'].dt.total_seconds().div(60)
-    return df_new[['No', 'Person1', 'Person2', 'Start', 'End', 'Duration_proxi']]
-
-
-def __timedifcheck(t1: pd.Timestamp, t2: pd.Timestamp):
-    return abs(pd.Timedelta(t2 - t1).total_seconds())
+from .common import __timedifcheck
+from .common import *
 
 
 def __check_spatial_intersect(item: Ellipse, others: Ellipse) -> bool:
@@ -265,9 +196,6 @@ def durationEstimator(df: pd.DataFrame, max_el_time_min: float, id1: int, id2: i
     return df_new[['No', 'Person1', 'Person2', 'Start', 'End', 'Duration']]
 
 
-
-
-
 class ORTEGA:
     def __init__(
             self,
@@ -280,7 +208,6 @@ class ORTEGA:
             longitude_field: str = "longitude",
             id_field: str = "pid",
             time_field: str = "time_local",  # must include month, day, year, hour, minute, second
-
     ):
         self.data = data
         self.start_time = start_time
@@ -291,7 +218,6 @@ class ORTEGA:
         self.time_field = time_field
         self.minute_delay = minute_delay
         self.max_el_time_min = max_el_time_min
-
         self.__validate()
         self.__start()
 
@@ -480,139 +406,4 @@ class ORTEGA:
         return get_spatiotemporal_intersect_pairs(self.ellipses_list_id1, self.ellipses_list_id2,
                                                   self.minute_delay, self.max_el_time_min)
 
-    # def __report_gen(self):
-    #     """
-    #     generate max value to throw out big PPA that has a length larger than 3x standard dev of all PPAs
-    #     :return:
-    #     """
-    #     size_list = [e.el[0].length for e in self.ellipses_list]
-    #
-    #     return {
-    #         "stdev": statistics.stdev(size_list),
-    #         "mean": statistics.mean(size_list),
-    #         "max_val": statistics.mean(size_list) + 3 * statistics.stdev(size_list),
-    #     }
 
-    def __compute_ppa_size(self):
-        if not self.ellipses_list:
-            raise ValueError("The attribute 'ellipses_list' is not found!")
-        size_list1 = [e.el[0].length for e in self.ellipses_list_id1]
-        size_list2 = [e.el[0].length for e in self.ellipses_list_id2]
-        return {"size_list1": size_list1, "size_list2": size_list2}
-
-    def compute_ppa_size(self, plot: bool = True):
-        print(datetime.now(), "Statistics of PPA ellipses size")
-        ellipse_size_collection = self.__compute_ppa_size()
-        print(f"id {self.id1} ellipse length:")
-        print(f"Mean:", statistics.mean(ellipse_size_collection['size_list1']))
-        print(f"Min:", min(ellipse_size_collection['size_list1']))
-        print(f"Max:", max(ellipse_size_collection['size_list1']))
-        print(f"Median:", statistics.median(ellipse_size_collection['size_list1']))
-        print(f"Standard deviation:", statistics.stdev(ellipse_size_collection['size_list1']))
-        print(f"id {self.id2} ellipse length:")
-        print(f"Mean:", statistics.mean(ellipse_size_collection['size_list2']))
-        print(f"Min:", min(ellipse_size_collection['size_list2']))
-        print(f"Max:", max(ellipse_size_collection['size_list2']))
-        print(f"Median:", statistics.median(ellipse_size_collection['size_list2']))
-        print(f"Standard deviation:", statistics.stdev(ellipse_size_collection['size_list2']))
-        if plot:
-            fig, (ax1, ax2) = plt.subplots(1, 2)
-            ax1.boxplot(ellipse_size_collection['size_list1'], labels=[self.id1], showmeans=True, showfliers=False)
-            ax2.boxplot(ellipse_size_collection['size_list2'], labels=[self.id2], showmeans=True, showfliers=False)
-            plt.show()
-        return ellipse_size_collection
-
-    def __compute_ppa_interval(self):
-        return [
-            self.df1[self.time_field].diff().dt.total_seconds().dropna(),
-            self.df2[self.time_field].diff().dt.total_seconds().dropna()
-        ]
-
-    def compute_ppa_interval(self, plot: bool = True):
-        print(datetime.now(), "Statistics of PPA ellipses time interval")
-        time_diff = self.__compute_ppa_interval()
-        print(f"id {self.id1} ellipse time interval (seconds):")
-        print(f"Mean:", time_diff[0].mean())
-        print(f"Min:", time_diff[0].min())
-        print(f"Max:", time_diff[0].max())
-        print(f"Median:", time_diff[0].median())
-        print(f"Standard deviation:", time_diff[0].std())
-
-        print(f"id {self.id2} ellipse time interval (seconds):")
-        print(f"Mean:", time_diff[1].mean())
-        print(f"Min:", time_diff[1].min())
-        print(f"Max:", time_diff[1].max())
-        print(f"Median:", time_diff[1].median())
-        print(f"Standard deviation:", time_diff[1].std())
-
-        if plot:
-            fig, (ax1, ax2) = plt.subplots(1, 2)
-            ax1.boxplot(time_diff[0], labels=[self.id1], showmeans=True, showfliers=False)
-            ax2.boxplot(time_diff[1], labels=[self.id2], showmeans=True, showfliers=False)
-            plt.show()
-        return time_diff
-
-    def plot_interaction(self, max_el_time_min: float = None, throw_out_big_ellipses: bool = True,
-                         legend: bool = True, save_plot: bool = False):
-        if not self.all_intersection_pairs:
-            raise ValueError("The attribute 'all_intersection_pairs' is not found!")
-        if not self.ellipses_list:
-            raise ValueError("The attribute 'ellipses_list' is not found!")
-        if max_el_time_min is None:
-            max_el_time_min = self.max_el_time_min
-        # max_val: float = self.__report_gen()["max_val"]
-        plot_interaction(self.all_intersection_pairs, self.ellipses_list_id1, self.ellipses_list_id2,
-                         self.id1, self.id2, max_el_time_min, throw_out_big_ellipses, legend, save_plot)  # max_val
-
-    def plot_interaction_animated(self, max_el_time_min: float = None, throw_out_big_ellipses: bool = True,
-                                  legend: bool = True, save_plot: bool = False):
-        if not self.all_intersection_pairs:
-            raise ValueError("The attribute 'all_intersection_pairs' is not found!")
-        if not self.ellipses_list:
-            raise ValueError("The attribute 'ellipses_list' is not found!")
-        if max_el_time_min is None:
-            max_el_time_min = self.max_el_time_min
-
-        max_lon = max(self.df1[self.longitude_field].max(), self.df2[self.longitude_field].max())
-        min_lon = min(self.df1[self.longitude_field].min(), self.df2[self.longitude_field].min())
-        max_lat = max(self.df1[self.latitude_field].max(), self.df2[self.latitude_field].max())
-        min_lat = min(self.df1[self.latitude_field].min(), self.df2[self.latitude_field].min())
-
-        boundary = [[min_lon - 0.01, max_lon + 0.01], [min_lat - 0.01, max_lat + 0.01]]
-        plot_interaction_animated(self.all_intersection_pairs, self.ellipses_list_id1, self.ellipses_list_id2, boundary,
-                                  self.id1, self.id2, max_el_time_min, throw_out_big_ellipses, legend, save_plot)
-        print(datetime.now(), 'Showing animated interaction...')
-
-    def plot_original_tracks(self, max_el_time_min: float = None, throw_out_big_ellipses: bool = True,
-                             legend: bool = True, save_plot: bool = False):
-        if not self.ellipses_list:
-            raise ValueError("The attribute 'ellipses_list' is not found!")
-        if max_el_time_min is None:
-            max_el_time_min = self.max_el_time_min
-        # max_val: float = self.__report_gen()["max_val"]
-        plot_original_tracks(self.ellipses_list_id1, self.ellipses_list_id2, self.id1, self.id2, max_el_time_min,
-                             throw_out_big_ellipses, legend, save_plot)  # max_val
-
-    def proximity(self, minute_delay: float = None, distance_size: float = 100.0):
-        """
-
-        :param minute_delay: allowable time difference between two GPS points of two individuals
-        :param distance_size: define buffer size in meter
-        :return:
-        """
-        if minute_delay is None:
-            minute_delay = self.minute_delay
-        return proximity_interaction(self.df1, self.df2, minute_delay, distance_size, self.latitude_field,
-                                     self.longitude_field, self.time_field, self.id1, self.id2)
-
-    def proximity_duration(self, df1: pd.DataFrame, threshold_continuous_min: float = 2):
-        """
-
-        :param df1:
-        :param threshold_continuous_min: merge the subsequent interaction incidents if the time gap
-        between them is less than threshold_continuous_min
-        :return:
-        """
-        if df1.empty:
-            raise ValueError("The input dataframe is empty!")
-        return merge_continuous_incident_proximity(df1, self.id1, self.id2, threshold_continuous_min)

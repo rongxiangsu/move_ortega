@@ -2,8 +2,11 @@ from typing import List, Tuple
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
-from .traj import  *
+import numpy as np
+from .traj import *
 from keplergl import KeplerGl
+
+
 # from matplotlib.animation import FuncAnimation
 
 
@@ -88,18 +91,14 @@ def plot_interaction(interation, max_el_time_min: float, throw_out_big_ellipses:
     plt.show()
 
 
-def visualization_trip(trajdata, col=['Lng', 'Lat', 'ID', 'Time'],
-                       zoom='auto', height=500):
+def visualization_trip(interaction, zoom='auto', height=500):
     '''
     The input is the trajectory data and the column name. The output is the
     visualization result based on kepler
     Parameters
     -------
-    trajdata : DataFrame
-        Trajectory points data
-    col : List
-        The column name, in the sequence of [longitude, latitude, vehicle id,
-        time]
+    interaction :
+
     zoom : number
         Map zoom level
     height : number
@@ -109,14 +108,14 @@ def visualization_trip(trajdata, col=['Lng', 'Lat', 'ID', 'Time'],
     vmap : keplergl.keplergl.KeplerGl
         Visualizations provided by keplergl
     '''
-    try:
-        from keplergl import KeplerGl
-    except ImportError:  # pragma: no cover
-        raise ImportError(  # pragma: no cover
-            "Please install keplergl, run "
-            "the following code in terminal: pip install keplergl")
-    print('Processing trajectory data...')
-    [Lng, Lat, ID, timecol] = col
+    print('Processing movement data...')
+    Lng, Lat, ID, timecol = interaction.longitude_field, interaction.latitude_field, interaction.id_field, interaction.time_field
+
+    if interaction.start_time is not None or interaction.end_time is not None:
+        trajdata = interaction.subset
+    else:
+        trajdata = interaction.data
+
     # clean data
     trajdata = trajdata[-((trajdata[Lng].isnull()) | (trajdata[Lat].isnull()))]
     trajdata = trajdata[
@@ -150,14 +149,39 @@ def visualization_trip(trajdata, col=['Lng', 'Lat', 'ID', 'Time'],
                                 {
                                     "dataId": "trajectory",
                                     "label": "trajectory",
-                                    "color": [255, 255, 255],
-                                    "highlightColor": [255, 255, 0, 255],
+                                    # "color": [255, 255, 255],
+                                    # "highlightColor": [255, 255, 0, 255],
                                     "columns":
                                         {
                                             "geojson": "_geojson"
                                         },
                                     "isVisible": True,
+                                    "visConfig": {
+                                        "opacity": 0.8,
+                                        "thickness": 5,
+                                        "colorRange": {
+                                            "name": "ColorBrewer Set1-6",
+                                            "type": "qualitative",
+                                            "category": "ColorBrewer",
+                                            "colors": [
+                                                "#e41a1c",
+                                                "#377eb8",
+                                                "#4daf4a",
+                                                "#984ea3",
+                                                "#ff7f00",
+                                                "#ffff33",
+                                            ],
+                                        },
+                                        "trailLength": 1000,
+                                        "sizeRange": [0, 10],
+                                    },
                                 },
+                            "visualChannels": {
+                                "colorField": {"name": "ID", "type": "integer"},
+                                "colorScale": "quantile",
+                                "sizeField": None,
+                                "sizeScale": "linear",
+                            },
                         }],
                     "layerBlending": "additive",
                     "animationConfig":
@@ -174,6 +198,9 @@ def visualization_trip(trajdata, col=['Lng', 'Lat', 'ID', 'Time'],
                         "pitch": 0,
                         "zoom": zoom,
                     },
+                "mapStyle": {
+                    "styleType": "satellite"  # outdoors, streets
+                }
             }},
         data={'trajectory': traj}, height=height)
     return vmap

@@ -26,14 +26,14 @@ def points_to_traj(traj_points, col=['Lng', 'Lat', 'ID'], timecol=None):
         for i in traj_points[ID].drop_duplicates():
             coords = traj_points[traj_points[ID] == i][[Lng, Lat, timecol]]
             coords[timecol] = coords[timecol].apply(
-                lambda r: int(r.value/1000000000))
+                lambda r: int(r.value / 1000000000))
             coords['altitude'] = 0
             coords = coords[[Lng, Lat, 'altitude', timecol]].values.tolist()
             traj_id.append(i)
             if len(coords) >= 2:
                 geometry.append({
                     "type": "Feature",
-                    "properties": {"ID":  i},
+                    "properties": {"ID": i},
                     "geometry": {"type": "LineString",
                                  "coordinates": coords}})
         traj = {"type": "FeatureCollection",
@@ -49,7 +49,7 @@ def points_to_traj(traj_points, col=['Lng', 'Lat', 'ID'], timecol=None):
             if len(coords) >= 2:
                 geometry.append(LineString(coords))
             else:
-                geometry.append(None) # pragma: no cover
+                geometry.append(None)  # pragma: no cover
         traj[ID] = traj_id
         traj['geometry'] = geometry
         traj = gpd.GeoDataFrame(traj)
